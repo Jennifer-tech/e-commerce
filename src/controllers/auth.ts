@@ -1,16 +1,23 @@
-import {Request, Response} from 'express'
+import { NextFunction, Request, Response } from 'express'
 import { prismaClient } from '..';
-import {hashSync, compareSync} from 'bcrypt'
+import { hashSync, compareSync } from 'bcrypt'
 import * as jwt from 'jsonwebtoken'
 import { JWT_SECRET } from '../secrets';
+import { BadRequestException } from '../exceptions/bad-requests';
+import { ErrorCode } from '../exceptions/root';
+import { UnprocessableEntity } from '../exceptions/validations';
+import { SignUpSchema } from '../schema/users';
+import { NotFoundException } from '../exceptions/not-found';
+import { UserRequest } from '../types/user-request';
 
-export const signup = async (req: Request, res: Response) => {
-    const { email, password, name} = req.body;
+export const signup = async (req: Request, res: Response, next: NextFunction) => {
+    SignUpSchema.parse(req.body)
+    const { email, password, name } = req.body;
 
-    let user = await prismaClient.user.findFirst({where: {email}})
+    let user = await prismaClient.user.findFirst({ where: { email } })
 
-    if(user) {
-        throw Error("User already exists!")
+    if (user) {
+        new BadRequestException('User already exist', ErrorCode.USER_ALREADY_EXISTS)
     }
     user = await prismaClient.user.create({
         data: {
@@ -23,20 +30,24 @@ export const signup = async (req: Request, res: Response) => {
 }
 
 export const login = async (req: Request, res: Response) => {
-    const { email, password} = req.body;
+    const { email, password } = req.body;
 
-    let user = await prismaClient.user.findFirst({where: {email}})
+    let user = await prismaClient.user.findFirst({ where: { email } })
 
-    if(!user) {
-        throw Error("User does not exists!")
+    if (!user) {
+        throw new NotFoundException("User not found", ErrorCode.USER_NOT_FOUND)
     }
-    if(!compareSync(password, user.password)) {
-        throw Error('Incorrect password!')
+    if (!compareSync(password, user.password)) {
+        throw new BadRequestException('Incorrect password!', ErrorCode.INCORRECT_PASSWORD)
     }
 
     const token = jwt.sign({
         userId: user.id
     }, JWT_SECRET)
 
-    res.json({user, token})
+    res.json({ user, token })
+}
+
+export const me = async (req: UserRequest, res: Response) => {
+    res.json(req.user)
 }
