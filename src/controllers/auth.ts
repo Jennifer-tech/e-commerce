@@ -8,6 +8,7 @@ import { ErrorCode } from '../exceptions/root';
 import { UnprocessableEntity } from '../exceptions/validations';
 import { SignUpSchema } from '../schema/users';
 import { NotFoundException } from '../exceptions/not-found';
+import { UserRequest } from '../types/user-request';
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
     SignUpSchema.parse(req.body)
@@ -45,4 +46,8 @@ export const login = async (req: Request, res: Response) => {
     }, JWT_SECRET)
 
     res.json({ user, token })
+}
+
+export const me = async (req: UserRequest, res: Response) => {
+    res.json(req.user)
 }
